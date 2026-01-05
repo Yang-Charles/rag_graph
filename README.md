@@ -1,142 +1,118 @@
-# RAG Graph — Multimodal Retrieval Scaffold
+ RAG Graph — Multimodal Retrieval Scaffold
 
-Lightweight scaffold combining multimodal retrieval and a simple knowledge graph.
-
-Core components
-
-- Milvus (`pymilvus`) — full-text (BM25), semantic, and image-vector retrieval
-- Knowledge graph — NetworkX (default) and optional Neo4j backing
-- FastAPI backend exposing search APIs
-- Vue frontend for quick comparison and visualization
-
-This README provides a concise quickstart, API usage, and notes for BM25 / KG integration.
-
-## Quickstart (local development)
-
-Prerequisites: Python 3.10+, Docker (for Milvus), pip.
-
-1) Install Python dependencies
-
-```powershell
-python -m pip install -r requirements.txt
-```
-
-2) Start Milvus (recommended via Docker Compose)
-
-- Download an official standalone compose file or create a `docker-compose.milvus.yml` and run:
-
-```powershell
-docker compose -f docker-compose.milvus.yml up -d
-```
-
-Milvus default ports: gRPC `19530`, HTTP/monitor `19121`.
-
-3) Start the backend
-
-```powershell
-$env:PYTHONPATH='.'; uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-4) Open the frontend
-
-- Open `frontend/index.html` in your browser (or serve the `frontend` folder as static files).
-
-5) (Optional) Load sample data
-
-```powershell
-python scripts/load_sample_data.py
-```
-
-## API (important)
-
-- POST `/api/search` (form)
-  - `query` (string, required)
-  - `image` (file, optional)
-  - `methods` (csv string, optional) — subset of `fulltext,semantic,image,kg,fused`
-  - `topk` (int, optional, default=5)
-
-The backend executes only requested methods to reduce cost. Response contains requested keys, e.g. `semantic`, `fulltext`, `kg`, and optional `fused` (RRF fused results).
-
-## Milvus & BM25 notes
-
-- To enable BM25 full-text support, create a `VARCHAR` field with `enable_analyzer=true` and add a BM25 index on that field:
-
-```python
-# example
-coll.create_index(field_name="text", index_params={"index_type": "BM25", "params": {"k1": 1.2, "b": 0.75}})
-```
-
-- Alternatively you may generate sparse BM25-weighted vectors externally and insert them into a `SPARSE_FLOAT_VECTOR` field.
-
-See official doc: https://milvus.io/docs/zh/full-text-search.md
-
-## Knowledge Graph (KG)
-
-- Default: in-memory NetworkX KG for development (`backend/app/services/kg_service.py`).
-- Optional: Neo4j integration — configure `KGService.connect_neo4j(uri, user, password)` and install `neo4j` driver.
-
-Insert example (Neo4j mode):
-
-```python
-nodes = [{"id":"doc:1","labels":["Document"],"props":{"text":"示例文本"}}]
-edges = [{"from":"doc:1","to":"org:1","rel":"BELONGS_TO","props":{}}]
-kg.kg_insert_nodes_edges(nodes, edges)
-```
-
-## Development notes
-
-- Two backend search flavors exist:
-  - `search.py`: calls per-method search functions
-  - `search_v2.py`: uses `multi_vector_search` to run multiple Milvus modalities in one call
-- Frontend now sends `methods` and `topk` so the backend only runs requested retrievals.
-- Heavy dependencies (`torch`, `sentence-transformers`, `pymilvus`) require time and disk space to install.
-
-## Useful commands
-
-- Install deps: `python -m pip install -r requirements.txt`
-- Start Milvus: `docker compose -f docker-compose.milvus.yml up -d`
-- Start backend: `uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000`
-
-## Contributing
-
-PRs and issues welcome. For production deployments consult Milvus and Neo4j official docs.
+> 轻量级脚手架，结合多模态检索与简易知识图谱  
+> 核心：Milvus + NetworkX + FastAPI + Vue
 
 ---
-_Concise quickstart — consult in-code docs and upstream docs for production guidance._
-# RAG Graph — Multimodal RAG with Milvus + NetworkX + FastAPI + Vue
 
-This repository provides a scaffold for a Retrieval-Augmented Generation (RAG) system combining:
-- Milvus (pymilvus==2.6) for full-text / semantic / image vector retrieval
-- NetworkX for a local knowledge graph (swapable for Neo4j)
-- FastAPI backend
-- Vue frontend (minimal)
+## 1. 项目定位
+- 快速搭建「文本+图像+知识图谱」的 RAG 原型
+- 本地开发 → 生产扩展均可复用
+- 代码量最小化，官方文档链接最大化
 
-Quick start (after installing dependencies):
+---
 
-安装 Milvus
-Milvus 在 Milvus 资源库中提供了 Docker Compose 配置文件。要使用 Docker Compose 安装 Milvus，只需运行
+## 2. 系统架构
 
-Download the configuration file
-wget https://github.com/milvus-io/milvus/releases/download/v2.6.8/milvus-standalone-docker-compose.yml -O docker-compose.yml
-Start Milvus
-sudo docker compose up -d
+| 组件        | 作用                             | 可替换方案               |
+|-------------|----------------------------------|--------------------------|
+| Milvus      | 全文(BM25)、语义、图像向量检索   | Elasticsearch、PgVector |
+| NetworkX    | 内存级知识图谱                   | Neo4j（已留接口）        |
+| FastAPI     | 检索 API                         | Flask、Spring            |
+| Vue         | 对比式可视化前端                 | React、Streamlit         |
 
+---
 
+## 3. 5 分钟本地启动
 
-1. Install Python deps:
+### 3.1 前置条件
+- Python ≥ 3.10
+- Docker（仅 Milvus 需要）
 
-```powershell
+### 3.2 安装 Python 依赖
+```bash
 python -m pip install -r requirements.txt
-```
 
-2. Run the backend:
+3.3 启动 Milvus（Docker Compose 一键）
+# 下载官方 Compose 文件
+wget https://github.com/milvus-io/milvus/releases/download/v2.6.8/milvus-standalone-docker-compose.yml -O docker-compose.yml
 
-```powershell
+# 启动
+sudo docker compose up -d
+Milvus-standalone容器使用默认设置为本地19530端口提供服务，并将其数据映射到当前文件夹中的volumes/milvus。
+
+# 验证
+docker compose ps
+# WebUI: http://127.0.0.1:9091/webui/
+
+
+3.4 启动后端
+# Windows
+$env:PYTHONPATH='.'; uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+
+# macOS / Linux
+PYTHONPATH=. uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+
+
+3.5 打开前端
+浏览器直接打开 frontend/index.html
+或
+任意静态文件服务器托管 frontend/ 目录
+3.6（可选）灌入示例数据
+bash
+复制
+python scripts/load_sample_data.py
+4. API 一览
+| 字段      | 类型     | 必填 | 说明                               |
+| ------- | ------ | -- | -------------------------------- |
+| query   | string | ✓  | 检索句子                             |
+| image   | file   | ×  | 图像文件                             |
+| methods | csv    | ×  | 全文 / 语义 / 图像 / 知识图谱 / fused（可组合） |
+| topk    | int    | ×  | 默认 5                             |
+
+
+返回示例
+{
+  "fulltext": [...],
+  "semantic": [...],
+  "kg": [...],
+  "fused": [...]      // RRF 融合结果，仅当 methods 包含 fused 时返回
+}
+
+
+6. 知识图谱（KG）
+| 模式       | 优点        | 启用方式                                                            |
+| -------- | --------- | --------------------------------------------------------------- |
+| NetworkX | 零配置、秒启动   | 默认                                                              |
+| Neo4j    | 事务、可视化、生产 | 安装 `neo4j` 驱动后调用 `KGService.connect_neo4j(uri, user, password)` |
+
+
+7. 开发进阶
+| 文件             | 说明                                    |
+| -------------- | ------------------------------------- |
+| `search.py`    | 各方法独立调用                               |
+| `search_v2.py` | 单次 `multi_vector_search` 聚合多向量，减少 RPC |
+| 前端             | 已支持动态勾选 methods & topk，后端按需执行         |
+
+
+
+8. 常用命令速查
+bash
+复制
+# 安装依赖
+python -m pip install -r requirements.txt
+
+# 启动 Milvus（若已改文件名）
+docker compose -f docker-compose.milvus.yml up -d
+
+# 启动后端
 uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
-```
 
-3. Open `frontend/index.html` in a browser.
+# 加载示例数据
+python scripts/load_sample_data.py
 
-Notes:
-- The Milvus service code is scaffolded for multi-vector search; tune index/search params per your Milvus deployment following https://milvus.io/docs/zh/multi-vector-search.md
-- Use `scripts/load_sample_data.py` to load example data into Milvus and the NetworkX graph.
+9. 贡献与生产化
+Issue / PR 欢迎
+生产部署请直接参考
+– Milvus 官方文档
+– Neo4j 官方文档
