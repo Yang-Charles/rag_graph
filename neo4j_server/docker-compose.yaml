@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  neo4j:
+    image: neo4j:5.20.0-community          # 企业版请改为 neo4j:5.20.0-enterprise
+    container_name: neo4j
+    restart: unless-stopped
+    ports:
+      - "7474:7474"                        # HTTP / Browser
+      - "7687:7687"                        # Bolt
+    environment:
+      # 认证
+      - NEO4J_AUTH=neo4j/yourStrongPassword
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes   # 企业版必须
+      # 插件（按需开启）
+      - NEO4J_PLUGINS=["apoc", "graph-data-science"]
+      # APOC 文件读写
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_apoc_import_file_enabled=true
+      - NEO4J_apoc_import_file_use__neo4j__config=true
+    volumes:
+      - ./data:/data
+      - ./logs:/logs
+      - ./plugins:/plugins
+      - ./import:/var/lib/neo4j/import
+      - ./conf:/conf

@@ -1,4 +1,3 @@
-
 # RAG Graph — 多模态检索与知识图谱脚手架
 
 > 轻量级原型，支持文本/图像/知识图谱多检索，核心依赖：Milvus、NetworkX/Neo4j、FastAPI、Vue
@@ -94,6 +93,104 @@ POST /api/search
 | -------- | --------- | --------------------------------------------------------------- |
 | NetworkX | 零配置、秒启动   | 默认                                                              |
 | Neo4j    | 事务、可视化、生产 | 安装 `neo4j` 驱动后调用 `KGService.connect_neo4j(uri, user, password)` |
+
+### Neo4j 安装部署方法
+
+#### Docker 方式（推荐）
+
+1. **使用 Docker Compose 安装**：
+   ```bash
+   # 创建项目目录并准备数据卷
+   mkdir -p ~/neo4j/{data,logs,plugins,import,conf}
+   cd ~/neo4j
+   
+   # 启动 Neo4j
+   cd neo4j_server
+   docker compose up -d          # 旧版本 CLI 用 docker-compose up -d
+   ```
+
+2. **访问 Neo4j**：
+   - Web UI: http://localhost:7474
+   - 默认用户名: `neo4j`
+   - 密码: `yourStrongPassword`（首次登录后需要修改）
+
+3. **可选增强配置**：
+   - 在 `./conf/neo4j.conf` 中添加内存和JVM调优参数：
+   ```
+   dbms.memory.heap.initial_size=1G
+   dbms.memory.heap.max_size=4G
+   dbms.memory.pagecache.size=2G
+   ```
+
+
+#### 项目中使用 Neo4j
+
+1. **安装依赖** （已包含在requirements.txt） ：
+   ```bash
+   pip install neo4j
+   ```
+
+2. **配置连接**：
+   在代码中使用 `KGService` 连接到 Neo4j：
+   ```python
+   from backend.app.services.kg_service import KGService
+   
+   # 连接到 Neo4j
+   kg_service = KGService(
+       neo4j_uri="bolt://localhost:7687",
+       user="neo4j",
+       password="yourStrongPassword"
+   )
+   ```
+
+3. **环境变量配置**（推荐）：
+   创建 `.env` 文件配置连接信息：
+   ```
+   NEO4J_URI=bolt://localhost:7687
+   NEO4J_USER=neo4j
+   NEO4J_PASSWORD=yourStrongPassword
+   ```
+
+#### 安全配置
+
+1. **修改默认密码** ：
+   - 首次启动后必须修改默认密码
+   - 使用强密码策略
+
+2. **启用认证和授权** ：
+   - 配置用户权限
+   - 使用角色基础访问控制
+
+3. **网络配置** ：
+   - 限制访问端口
+   - 使用防火墙规则
+
+#### 常用管理命令
+
+```bash
+# 检查 Neo4j 状态
+docker exec -it neo4j-container neo4j status
+
+# 进入容器
+docker exec -it neo4j-container bash
+
+# 运行 Cypher 查询
+docker exec -it neo4j-container cypher-shell -u neo4j -p yourStrongPassword
+
+# 备份数据库
+docker exec -it neo4j-container neo4j-admin backup --from=neo4j://localhost:7687 --to=/backups/
+
+# 恢复数据库
+docker exec -it neo4j-container neo4j-admin load --from=/path/to/backup --force
+```
+
+| 端口 | 用途 | 说明 |
+|------|------|------|
+| 7474 | HTTP | Web UI 和 REST API |
+| 7473 | HTTPS | 加密 Web UI |
+| 7687 | Bolt | 客户端连接协议 |
+| 7688 | Bolt Routing | 集群路由 |
+---
 
 ## 6. 开发进阶
 
