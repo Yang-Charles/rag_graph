@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  search-service-v2:
+    build: .
+    container_name: rag-graph-search-v2
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - RELOAD=false
+      - WORKERS=2
+      - LOG_LEVEL=info
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - rag-network
+
+  # 如果需要反向代理可以添加 nginx
+  nginx:
+    image: nginx:alpine
+    container_name: rag-graph-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - search-service-v2
+    restart: unless-stopped
+    networks:
+      - rag-network
+
+networks:
+  rag-network:
+    driver: bridge
