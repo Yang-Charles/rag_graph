@@ -17,24 +17,17 @@ async def search(query: str = Form(...), image: Optional[UploadFile] = File(None
     if image:
         image_bytes = await image.read()
 
-    # Run milvus multi-vector (semantic + image + fulltext) in thread
-    milvus_task = asyncio.to_thread(milvus.multi_vector_search, query, image_bytes, 10)
+    # Run milvus hybrid search in thread
+    milvus_task = asyncio.to_thread(milvus.hybrid_search, query, image_bytes, 10)
     kg_task = asyncio.to_thread(kg.search_entities, query)
 
     milvus_res, kg_res = await asyncio.gather(milvus_task, kg_task)
 
-    # milvus_res contains keys semantic,image,fulltext
-    fulltext_res = milvus_res.get('fulltext', [])
-    semantic_res = milvus_res.get('semantic', [])
-    image_res = milvus_res.get('image', [])
-
-    # Fuse all lists (including KG) using RRF
-    fused = rrf_fuse([fulltext_res, semantic_res, image_res, kg_res])
+    # Fuse milvus results with KG using RRF
+    fused = rrf_fuse([milvus_res, kg_res])
 
     return {
-        "fulltext": fulltext_res,
-        "semantic": semantic_res,
-        "image": image_res,
+        "milvus": milvus_res,
         "kg": kg_res,
         "fused": fused,
     }

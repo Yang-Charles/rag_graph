@@ -1,4 +1,4 @@
-# RAG Graph — 多模态检索与知识图谱脚手架
+# RAG Graph — 基于全文+语义+多模态检索与知识图谱问答智能体
 
 > 轻量级原型，支持文本/图像/知识图谱多检索，核心依赖：Milvus、NetworkX/Neo4j、FastAPI、Vue
 
